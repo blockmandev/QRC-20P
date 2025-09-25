@@ -7,6 +7,7 @@ use std::slice;
 
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use once_cell::sync::Lazy;
 
 use ethereum_types::{Address, H256, U256};
 use hex;
@@ -37,6 +38,12 @@ pub struct ModeSwitchResult {
     pub proof_len: usize,
     pub new_commitment: [u8; 32],
 }
+
+/// Global runtime for FFI functions - initialized once and reused
+static FFI_RUNTIME: Lazy<tokio::runtime::Runtime> = Lazy::new(|| {
+    tokio::runtime::Runtime::new()
+        .expect("Failed to create FFI runtime - this is fatal")
+});
 
 /// Magic number for handle validation
 const PRIVACY_HANDLE_MAGIC: u64 = 0xDEADBEEF_CAFEBABE;
@@ -273,11 +280,8 @@ pub extern "C" fn switch_token_mode(
         TokenMode::Public
     };
 
-    // Switch mode using UniversalSwitch (using block_on for sync FFI)
-    use tokio::runtime::Runtime;
-    let rt = Runtime::new().unwrap();
-
-    let result = rt.block_on(async {
+    // Switch mode using UniversalSwitch (using global runtime)
+    let result = FFI_RUNTIME.block_on(async {
         if to_private == 1 {
             // Switch to private - generate random secret and nonce
             let secret = H256::random();
@@ -510,8 +514,8 @@ pub extern "C" fn switch_private_with_splitting(
     };
 
     // Execute splitting
-    let runtime = tokio::runtime::Runtime::new().unwrap();
-    match runtime.block_on(system.universal_switch.switch_to_private_with_splitting(
+    // Use global runtime instead of creating new one
+    match FFI_RUNTIME.block_on(system.universal_switch.switch_to_private_with_splitting(
         token,
         user_addr,
         U256::from(amount),
@@ -573,8 +577,8 @@ pub extern "C" fn mix_and_switch(
     }
 
     // Execute mixing
-    let runtime = tokio::runtime::Runtime::new().unwrap();
-    match runtime.block_on(system.universal_switch.mix_and_switch(token, entries)) {
+    // Use global runtime instead of creating new one
+    match FFI_RUNTIME.block_on(system.universal_switch.mix_and_switch(token, entries)) {
         Ok(results) => {
             // Return results as JSON
             let mut json_results = Vec::new();
@@ -740,8 +744,8 @@ pub extern "C" fn switch_private_enhanced(
     };
 
     // Run async operation
-    let runtime = tokio::runtime::Runtime::new().unwrap();
-    let result = runtime.block_on(async {
+    // Use global runtime instead of creating new one
+    let result = FFI_RUNTIME.block_on(async {
         let switch = wrapper.handle.universal_switch.read().await;
         switch.switch_to_private_enhanced(
             token_id,
@@ -815,8 +819,8 @@ pub extern "C" fn register_stealth_keys(
     };
 
     // Register keys
-    let runtime = tokio::runtime::Runtime::new().unwrap();
-    let result = runtime.block_on(async {
+    // Use global runtime instead of creating new one
+    let result = FFI_RUNTIME.block_on(async {
         let switch = wrapper.handle.universal_switch.read().await;
         switch.stealth.register_stealth_keys(
             user_addr,
@@ -892,8 +896,8 @@ pub extern "C" fn scan_stealth_payments(
     }
 
     // Scan for payments
-    let runtime = tokio::runtime::Runtime::new().unwrap();
-    let result = runtime.block_on(async {
+    // Use global runtime instead of creating new one
+    let result = FFI_RUNTIME.block_on(async {
         let switch = wrapper.handle.universal_switch.read().await;
         switch.stealth.scan_for_payments(
             view_key,

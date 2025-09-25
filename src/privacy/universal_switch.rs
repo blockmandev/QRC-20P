@@ -127,10 +127,42 @@ impl PrivacyPool {
         if nullifiers.contains(&nullifier) {
             return Err(anyhow!("Nullifier already spent"));
         }
-        
+
         // In production: Verify ZK proof here
         // For now, just mark nullifier as spent
         nullifiers.insert(nullifier);
+        Ok(())
+    }
+
+    pub async fn add_commitment(&mut self, commitment: H256) -> Result<()> {
+        let mut commitments = self.commitments.write().await;
+        commitments.insert(commitment);
+
+        let mut tree = self.merkle_tree.write().await;
+        tree.insert(commitment);
+        Ok(())
+    }
+
+    pub async fn add_validator_metadata(&mut self, address: Address, index: u64, block_height: u64) -> Result<()> {
+        // In production, this would store validator metadata for tracking
+        // For now, we just validate the parameters
+        if index == 0 {
+            return Err(anyhow!("Invalid validator index"));
+        }
+        // Metadata storage could be added here
+        Ok(())
+    }
+
+    pub async fn add_p2p_metadata(&mut self, peer_id: String, timestamp: u64) -> Result<()> {
+        // In production, this would store P2P peer metadata
+        // For now, we just validate the parameters
+        if peer_id.is_empty() {
+            return Err(anyhow!("Invalid peer ID"));
+        }
+        if timestamp == 0 {
+            return Err(anyhow!("Invalid timestamp"));
+        }
+        // Metadata storage could be added here
         Ok(())
     }
 }
@@ -157,11 +189,12 @@ impl PrivacyStateManager {
     }
 
     /// Add a nullifier to the global set
-    pub fn add_nullifier(&mut self, nullifier: H256) -> Result<()> {
+    pub async fn add_nullifier(&mut self, nullifier: H256) -> Result<()> {
         // In a real implementation, this would add to a global nullifier set
         // For now, we add it to all pools to prevent double-spending
         for pool in self.pools.values_mut() {
-            pool.nullifiers.insert(nullifier);
+            let mut nullifiers = pool.nullifiers.write().await;
+            nullifiers.insert(nullifier);
         }
         Ok(())
     }
@@ -1071,17 +1104,17 @@ impl UniversalSwitch {
             let pool = privacy_mgr.get_or_create_pool(commitment.commitment)?;
 
             // Add commitment to the pool's merkle tree
-            pool.add_commitment(commitment.commitment)?;
+            pool.add_commitment(commitment.commitment).await?;
 
             // Track the source for validator-specific operations
             if let CommitmentSource::Validator { address, index } = commitment.source {
                 // Store validator-specific metadata if needed
-                pool.add_validator_metadata(address, index, commitment.block_height)?;
+                pool.add_validator_metadata(address, index, commitment.block_height).await?;
             }
 
             // Update nullifier tracking if present
             if let Some(nullifier) = commitment.nullifier {
-                privacy_mgr.add_nullifier(nullifier)?;
+                privacy_mgr.add_nullifier(nullifier).await?;
             }
         }
 
@@ -1097,17 +1130,17 @@ impl UniversalSwitch {
             let pool = privacy_mgr.get_or_create_pool(commitment.commitment)?;
 
             // Add commitment to the pool's merkle tree
-            pool.add_commitment(commitment.commitment)?;
+            pool.add_commitment(commitment.commitment).await?;
 
             // Track P2P source for network-specific operations
             if let CommitmentSource::P2PNode { peer_id } = &commitment.source {
                 // Store P2P-specific metadata if needed
-                pool.add_p2p_metadata(peer_id.clone(), commitment.timestamp)?;
+                pool.add_p2p_metadata(peer_id.clone(), commitment.timestamp).await?;
             }
 
             // Update nullifier tracking if present
             if let Some(nullifier) = commitment.nullifier {
-                privacy_mgr.add_nullifier(nullifier)?;
+                privacy_mgr.add_nullifier(nullifier).await?;
             }
         }
 

@@ -15,6 +15,11 @@ use halo2_proofs::{
     },
     poly::{
         Rotation,
+        kzg::{
+            commitment::{KZGCommitmentScheme, ParamsKZG},
+            multiopen::{ProverGWC, VerifierGWC},
+            strategy::SingleStrategy,
+        },
     },
     transcript::{Blake2bRead, Blake2bWrite, Challenge255},
 };
@@ -23,11 +28,9 @@ use halo2curves::pairing::Engine;
 use rand::rngs::OsRng;
 use ff::PrimeField;
 
-// Type aliases for KZG types (implementation details)
-type ParamsKZG<E> = Vec<u8>;  // Simplified params type
-type KZGCommitmentScheme<E> = Vec<u8>;  // Simplified commitment scheme
-type ProverGV21<E> = Vec<u8>;  // Simplified prover type
-type VerifierGV21<E> = Vec<u8>;  // Simplified verifier type
+// Type aliases for KZG prover and verifier (using GWC multiopen scheme)
+type ProverGV21<E> = ProverGWC<'static, E>;
+type VerifierGV21<E> = VerifierGWC<E>;
 
 /// Privacy circuit configuration
 #[derive(Clone, Debug)]

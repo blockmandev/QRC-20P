@@ -8,9 +8,16 @@ use ethereum_types::{Address, H256, U256};
 use anyhow::Result;
 use super::zk_proofs::H256Ext;  // Added: for H256::random()
 use serde_json;
+use once_cell::sync::Lazy;
 
 use super::universal_switch::{UniversalSwitch, SwitchConfig};
 use super::transaction_v2::{TokenId, TokenMode};
+
+/// Global runtime for FFI functions - initialized once and reused
+static FFI_RUNTIME: Lazy<tokio::runtime::Runtime> = Lazy::new(|| {
+    tokio::runtime::Runtime::new()
+        .expect("Failed to create FFI runtime - this is fatal")
+});
 
 /// FFI Result structure for Go integration
 #[repr(C)]
@@ -23,7 +30,6 @@ pub struct SwitchResult {
 /// FFI handle for Universal Switch
 pub struct UniversalSwitchHandle {
     switch: Arc<UniversalSwitch>,
-    runtime: tokio::runtime::Runtime,
 }
 
 /// Process switch request from Go - CRITICAL FOR L1
@@ -104,14 +110,8 @@ pub extern "C" fn universal_switch_process(
     request_id_bytes.copy_from_slice(request_id.as_bytes());
 
     // Create runtime and process
-    let runtime = match tokio::runtime::Runtime::new() {
-        Ok(rt) => rt,
-        Err(e) => return SwitchResult {
-            success: 0,
-            request_id: request_id_bytes,
-            error_msg: CString::new(format!("Runtime error: {}", e)).unwrap().into_raw(),
-        }
-    };
+    // Use global runtime instead of creating new one
+    let runtime = &*FFI_RUNTIME;
 
     // Create switch and process
     let config = SwitchConfig::default();
@@ -171,12 +171,8 @@ pub extern "C" fn universal_switch_init(
     };
 
     let switch = Arc::new(UniversalSwitch::new(config));
-    let runtime = match tokio::runtime::Runtime::new() {
-        Ok(rt) => rt,
-        Err(_) => return std::ptr::null_mut(),
-    };
 
-    Box::into_raw(Box::new(UniversalSwitchHandle { switch, runtime }))
+    Box::into_raw(Box::new(UniversalSwitchHandle { switch }))
 }
 
 /// Switch to private mode with optional splitting
@@ -216,7 +212,7 @@ pub extern "C" fn switch_to_private_ffi(
     };
 
     // Run async code in sync context
-    let result = handle.runtime.block_on(async {
+    let result = FFI_RUNTIME.block_on(async {
         if use_splitting == 1 {
             handle.switch.switch_to_private_with_splitting(
                 token_id, user, amount, H256::random(), H256::random()
@@ -274,7 +270,7 @@ pub extern "C" fn verify_switch_for_consensus(
         None => return 0,
     };
 
-    let result = handle.runtime.block_on(async {
+    let result = FFI_RUNTIME.block_on(async {
         handle.switch.verify_switch_for_consensus(&request, block_height, state_root).await
     });
 
@@ -311,7 +307,7 @@ pub extern "C" fn get_unified_balance(
         None => return CString::new("0").unwrap().into_raw(),
     };
 
-    let balance = handle.runtime.block_on(async {
+    let balance = FFI_RUNTIME.block_on(async {
         handle.switch.get_unified_balance(token_id, user).await
     });
 
@@ -359,7 +355,7 @@ pub extern "C" fn register_token_pair(
         Err(_) => U256::zero(),
     };
 
-    let result = handle.runtime.block_on(async {
+    let result = FFI_RUNTIME.block_on(async {
         handle.switch.register_token_pair(
             public_address,
             private_address,

@@ -11,11 +11,16 @@ use halo2_proofs::{
     circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value},
     plonk::{
         Circuit, ConstraintSystem, Error, Selector, Column, Instance, Advice,
-        create_proof, verify_proof, keygen_vk, keygen_pk, 
+        create_proof, verify_proof, keygen_vk, keygen_pk,
         ProvingKey, VerifyingKey, SingleVerifier,
     },
     poly::{
         Rotation,
+        kzg::{
+            commitment::{KZGCommitmentScheme, ParamsKZG},
+            multiopen::{ProverGWC, VerifierGWC},
+            strategy::SingleStrategy,
+        },
     },
     transcript::{
         Blake2bRead, Blake2bWrite, Challenge255,
@@ -27,11 +32,9 @@ use halo2curves::bn256::{Bn256, Fr, G1Affine};
 use halo2curves::pairing::Engine;
 use ff::PrimeField;
 
-// Type aliases for KZG types (implementation details)
-type ParamsKZG<E> = Vec<u8>;  // Simplified params type
-type KZGCommitmentScheme<E> = Vec<u8>;  // Simplified commitment scheme
-type ProverGV21<E> = Vec<u8>;  // Simplified prover type
-type VerifierGV21<E> = Vec<u8>;  // Simplified verifier type
+// Type aliases for KZG prover and verifier (using GWC multiopen scheme)
+type ProverGV21<E> = ProverGWC<'static, E>;
+type VerifierGV21<E> = VerifierGWC<E>;
 
 use halo2_gadgets::poseidon::{
     Hash as PoseidonHash,
@@ -489,23 +492,29 @@ fn h256_from_field(f: Fr) -> H256 {
 
 // Poseidon helper functions using Halo2's native implementation
 pub fn compute_commitment(secret: H256, amount: U256, blinding: H256) -> H256 {
+    use halo2_gadgets::poseidon::primitives::{Hash};
+
     let input = [
         field_from_h256(secret),
         field_from_u256(amount),
         field_from_h256(blinding),
     ];
-    
-    let output = poseidon::P128Pow5T3::hash(input);
+
+    let hasher = Hash::<_, P128Pow5T3, ConstantLength<3>, 3, 2>::init();
+    let output = hasher.hash(input);
     h256_from_field(output)
 }
 
 pub fn compute_nullifier(secret: H256, leaf_index: u32) -> H256 {
+    use halo2_gadgets::poseidon::primitives::{Hash};
+
     let input = [
         field_from_h256(secret),
         Fr::from(leaf_index as u64),
     ];
-    
-    let output = poseidon::P128Pow5T3::hash_two(input);
+
+    let hasher = Hash::<_, P128Pow5T3, ConstantLength<2>, 2, 1>::init();
+    let output = hasher.hash(input);
     h256_from_field(output)
 }
 
