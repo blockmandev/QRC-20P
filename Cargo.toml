@@ -23,7 +23,8 @@ sha3 = "0.10.8"
 sha2 = "0.10"  # Add this - used in your code
 hex = "0.4.3"
 rand = "0.8.5"  # ⚠️ CHANGE: Use 0.8.5 for compatibility
-secp256k1 = { version = "0.28.2", features = ["recovery", "global-context", "rand"] }  # ⚠️ CHANGE
+secp256k1 = { version = "0.28.2", features = ["recovery", "global-context", "rand", "serde"] }  # ⚠️ CHANGE
+constant_time_eq = "0.3"  # Add for secure comparisons
 
 # ZK-SNARK libraries
 halo2_proofs = "0.3.1"
