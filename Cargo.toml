@@ -15,7 +15,7 @@ serde = { version = "1.0.226", features = ["derive"] }
 serde_json = "1.0.145"
 
 # Ethereum types
-ethereum-types = "0.15.1"  # Updated: newer version with bug fixes
+ethereum-types = "0.14.1"  # Use 0.14.1 for compatibility with primitive-types
 ethers = "2.0.14"          # Updated: specific version for compatibility
 
 # Cryptography
@@ -27,10 +27,10 @@ secp256k1 = { version = "0.28.2", features = ["recovery", "global-context", "ran
 constant_time_eq = "0.3"  # Add for secure comparisons
 
 # ZK-SNARK libraries
-halo2_proofs = "0.3.1"
-halo2_gadgets = "0.3.1"
-halo2curves = "0.6.1"  # You'll need to verify this works
-ff = "0.13.1"
+# Using halo2-axiom for BN256 support
+halo2-axiom = "0.4.0"
+halo2curves-axiom = "0.5.0"
+ff = "0.13.0"
 group = "0.13.0"
 blake2b_simd = "1.0.3"
 
