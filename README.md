@@ -339,13 +339,6 @@ git push origin feature/your-feature-name
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🔗 Links
-
-- **Documentation**: [docs.qoranet.io/privacy](https://docs.qoranet.io/privacy)
-- **API Reference**: [api.qoranet.io](https://api.qoranet.io)
-- **Discord**: [discord.gg/qoranet](https://discord.gg/qoranet)
-- **Twitter**: [@QoraNet](https://twitter.com/qoranet)
-
 ## ⚠️ Security
 
 ### Reporting Security Issues
