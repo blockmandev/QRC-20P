@@ -25,6 +25,8 @@ hex = "0.4.3"
 rand = "0.8.5"  # ⚠️ CHANGE: Use 0.8.5 for compatibility
 secp256k1 = { version = "0.28.2", features = ["recovery", "global-context", "rand", "serde"] }  # ⚠️ CHANGE
 constant_time_eq = "0.3"  # Add for secure comparisons
+aes-gcm = "0.10"  # For Tor onion encryption
+rand_core = "0.6"  # For OsRng
 
 # ZK-SNARK libraries
 # Using halo2-axiom for BN256 support
